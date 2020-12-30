@@ -1,45 +1,57 @@
 include("Form.jl")
 include("Layer.jl")
-using NamedColors
-using Measures
+using Measures, NamedColors
 import Compose, Cairo, Fontconfig
-BACKGROUND = (Compose.context(), Compose.rectangle(), Compose.fill(colorant"beige"))
 
 
-# form
+# method: form declaration
 # ---
 mutable struct Line <: Form
+	# fields
+	points::Vector
 
-	ps::Vector{Tuple{T, T}} where T <: Union{Real, Length}
-	
+	# kwargs
+	lw::Length
 	style::Vector
 
-	Line(ps; style=[]) = new(ps, style)
+	# constructor
+	Line(points::Vector; lw=0.25mm, style=[]) = new(points, lw, style)
 end
 
-# layer
+# method: Line form -> Line layer
 # ---
-function Layer(l::Line)
+function Layer(l::Line, config::Compose.Context)
 
-	layer = (Compose.context(), 
-		 Compose.line(l.ps), p.style...,
-		 Compose.linewidth(0.25mm),
-		 Compose.stroke(colorant"wine"))
+	layer = (
+		config, 
+		Compose.line(l.points), 
+		l.style...,
+		Compose.linewidth(l.lw),
+		Compose.stroke(colorant"beige")
+	)
 
 	return layer
 
 end
 
+Layer(l::Line; config=Compose.context()) = Layer(l, config)
+
 # example
 # ---
 begin
 	Compose.set_default_graphic_size(5cm, 5cm); dt = 1e-2
-	ps = [(
-	       0.25 + 0.5t,
-	       0.25sin(5π*t) + 0.5
-	) for t in 0:dt:1]
-	l = Line(ps)
-	layer = Layer(l)
-	frame = render([layer, BACKGROUND])
-	frame |> Compose.PDF("gallery/Line.pdf")
+	BACKGROUND = (
+		Compose.context(),
+		Compose.rectangle(),
+		Compose.fill(colorant"Licorice")
+	)
+	x = t -> 0.25 + 0.5t
+	lines = Line[]
+	for y₀ in 0.25:0.05:0.75
+		y = t -> y₀ - (t - 0.55)^3 
+		push!(lines, Line([(x(t), y(t)) for t ∈ 0.0:0.05:1.0]))
+	end
+	layers = Layer.(lines)
+	image  = render([layers..., BACKGROUND])
+	image  |> Compose.PDF("gallery/Line.pdf")
 end

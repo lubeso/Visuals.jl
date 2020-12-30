@@ -1,83 +1,12 @@
 include("Form.jl")
 include("Layer.jl")
-using NamedColors, Measures
+using Measures, NamedColors
 import Compose, Cairo, Fontconfig
-BACKGROUND = (Compose.context(), Compose.rectangle(), Compose.fill(colorant"wine"))
-
-# form
-# ---
-mutable struct Arc <: Form
-
-	class::Symbol
-
-	params::Vector
-	
-	style::Vector
-
-	Arc(class::Symbol, params::Vector; style=[]) = new(class, params, style)
-end
-
-# layer
-# ---
-function Layer(a::Arc)
-
-	if a.class == :three_points
-
-		form = three_points_arc(a.params...)
-
-		layer = (Compose.context(),
-			 form,
-			 a.style...,
-			 Compose.stroke(colorant"wine"),
-			 Compose.linewidth(0.25mm))
-
-	else
-
-	end
-
-	return layer
-
-end
-
-function three_points_arc(p₁, p₂, p₃)
-
-	l₁₂ = ⟂(Line(midpoint(p₁, p₂), p₂))
-	l₃₂ = ⟂(Line(midpoint(p₃, p₂), p₂))
-
-	c = intersection(l₁₂, l₃₂)
-
-	if c isa Missing
-
-		return missing
-
-	else
-
-		x, y = c
-
-	end
-
-	r = √((x - p₂[1])^2 + (y - p₂[2])^2)
-
-	A, B = [pᵢ .- c for pᵢ ∈ [p₁, p₃]]
-
-	θ₁, θ₂ = [ϑ(A...), ϑ(B...)]
-
-	if θ₁ > θ₂
-
-		θ₁ -= 2π
-
-	end
-
-	points = [c .+ r .* (cos(θ), sin(θ)) for θ ∈ θ₁:π/99:θ₂]
-
-	return Compose.line(points)
-
-end
 
 # geometry
 # ---
 
-mutable struct Line
+mutable struct RefLine
 
 	p₁::Tuple
 
@@ -85,11 +14,11 @@ mutable struct Line
 
 	m::Real
 
-	Line(p₁, p₂; m=slope(p₁, p₂)) = new(p₁, p₂, m)
+	RefLine(p₁, p₂; m=slope(p₁, p₂)) = new(p₁, p₂, m)
 
 end
 
-function ⟂(l::Line)
+function ⟂(l::RefLine)
 
 	p₁, p₂, m = (l.p₁, l.p₂, l.m)
 
@@ -105,11 +34,11 @@ function ⟂(l::Line)
 
 	end
 
-	l′ = Line(p₁, p₂′, m=m′)
+	l′ = RefLine(p₁, p₂′, m=m′)
 
 end
 
-function intersection(p::Line, q::Line)
+function intersection(p::RefLine, q::RefLine)
 
 	x₁, y₁ = p.p₁; m₁ = p.m
 	x₂, y₂ = q.p₁; m₂ = q.m
@@ -201,18 +130,216 @@ function ϑ(Δx, Δy)
 
 end
 
+# form
+# ---
+mutable struct Arc3Points <: Form
+
+	points::Vector
+	
+	lw::Length
+	style::Vector
+
+	Arc3Points(points::Vector; lw=0.25mm, style=[]) = new(points, lw, style)
+end
+
+Layer(a::Arc3Points; config=Compose.context()) = Layer(a, config)
+
+function three_points_arc(p₁, p₂, p₃)
+
+	l₁₂ = ⟂(RefLine(midpoint(p₁, p₂), p₂))
+	l₃₂ = ⟂(RefLine(midpoint(p₃, p₂), p₂))
+
+	c = intersection(l₁₂, l₃₂)
+
+	if c isa Missing
+
+		return missing
+
+	else
+
+		x, y = c
+
+	end
+
+	r = √((x - p₂[1])^2 + (y - p₂[2])^2)
+
+	A, B = [pᵢ .- c for pᵢ ∈ [p₁, p₃]]
+
+	θ₁, θ₂ = [ϑ(A...), ϑ(B...)]
+
+	if θ₁ > θ₂
+
+		θ₁ -= 2π
+
+	end
+
+	points = [c .+ r .* (cos(θ), sin(θ)) for θ ∈ θ₁:π/99:θ₂]
+
+	return Compose.line(points)
+
+end
+
+function Layer(a::Arc3Points, config::Compose.Context)
+
+	form = three_points_arc(a.points...)
+
+	layer = (
+		config,
+		form,
+		a.style...,
+		Compose.stroke(colorant"beige"),
+		Compose.linewidth(0.25mm)
+	)
+
+	return layer
+
+end
+
+Layer(a::Arc3Points; config=Compose.context()) = Layer(a, config)
+
 # example
 # ---
 begin
-	bg, fg = rand(colors, 2)	
-	BACKGROUND = (Compose.context(), Compose.rectangle(), Compose.fill(rand([colorant"Licorice", colorant"wine"])))
-	Compose.set_default_graphic_size(508mm, 285.75mm)
-	v = (0.0, 1.3); P = [(0.4, 1.6), (0.3, 0.1), (0.9, 0.25)]
-	ps = [[p .+ √(+(((p .- v).^2)...)) .* (cos(θ), sin(θ)) for p ∈ P] for θ in 0:π/60:2π]
-	str = rand([colorant"Vanilla", colorant"beige"])
-	arcs = [Arc(:three_points, ps[i], style=[Compose.linewidth(.95mm), Compose.stroke(str)]) for i ∈ eachindex(ps)]
+	Compose.set_default_graphic_size(5cm, 5cm)
+	BACKGROUND = (
+		Compose.context(),
+		Compose.rectangle(),
+		Compose.fill(colorant"Licorice")
+	)
+	arrays = [[(0.5, 0.5), 
+		   (0.5, 0.5) .+ 0.25 .* (cos(θ + π/4), sin(θ + π/4)), 
+		   (0.5, 0.5) .+ 0.25 .* (cos(θ), sin(θ))] for 
+		 θ ∈ 0.0:π/21:2π]
+	arcs = Arc3Points.(arrays)
 	layers = Layer.(arcs)
-	img = render([layers..., BACKGROUND])
-	img |> Compose.PDF("gallery/ARC_I.pdf")
+	image  = render([layers..., BACKGROUND])
+	image  |> Compose.PDF("gallery/Arc3Points.pdf")
+end
+
+mutable struct ArcCPoints <: Form
+
+	center::Tuple
+	points::Vector
+
+	lw::Length
+	style::Vector
+
+	ArcCPoints(center::Tuple, points::Vector; lw=0.25mm, style=[]) = new(center, points, lw, style)
+
+end
+
+function center_points_arc(c, p₁, p₂)
+
+	x, y = c; x₁, y₁ = p₁
+
+	r = √((x - x₁)^2 + (y - y₁)^2)
+
+	A, B = [pᵢ .- c for pᵢ ∈ [p₁, p₂]]
+
+	θ₁, θ₂ = [ϑ(A...), ϑ(B...)]
+
+	if θ₁ > θ₂
+
+		θ₁ -= 2π
+
+	end
+
+	points = [c .+ r .* (cos(θ), sin(θ)) for θ ∈ θ₁:π/99:θ₂]
+
+	return Compose.line(points)
+
+end
+
+function Layer(a::ArcCPoints, config::Compose.Context)
+
+	form = center_points_arc(a.center, a.points...)
+
+	layer = (
+		config,
+		form,
+		a.style...,
+		Compose.stroke(colorant"beige"),
+		Compose.linewidth(0.25mm)
+	)
+
+	return layer
+
+end
+
+Layer(a::ArcCPoints; config=Compose.context()) = Layer(a, config)
+
+# example
+# ---
+begin
+	Compose.set_default_graphic_size(5cm, 5cm)
+	BACKGROUND = (
+		Compose.context(),
+		Compose.rectangle(),
+		Compose.fill(colorant"Licorice")
+	)
+	arrays = [
+		  [(0.5, 0.65) .- (d/2, 0)
+		   (0.5, 0.65) .+ (d/2, 0)] for d ∈ 0.1:0.05:0.6
+	]
+	centers = fill((0.5, 0.6), length(arrays))
+	arcs = ArcCPoints.(centers, arrays)
+	layers = Layer.(arcs)
+	image  = render([layers..., BACKGROUND])
+	image  |> Compose.PDF("gallery/ArcCPoints.pdf")
+end
+
+mutable struct ArcCAngles <: Form
+
+	center::Tuple
+	radius::Union{Real, Length}
+	angles::Vector
+
+	lw::Length
+	style::Vector
+
+	ArcCAngles(center::Tuple, radius::Union{Real, Length}, angles::Vector; lw=0.25mm, style=[]) = new(center, radius, angles, lw, style)
+
+end
+
+function Layer(a::ArcCAngles, config::Compose.Context)
+
+	form = Compose.arc(
+		a.center...,
+		a.radius,
+		a.angles...,
+		false
+	)
+
+	layer = (
+		config,
+		form,
+		a.style...,
+		Compose.linewidth(a.lw),
+		Compose.fill(nothing),
+		Compose.stroke(colorant"beige")
+	)
+
+	return layer
+
+end
+
+Layer(a::ArcCAngles; config=Compose.context()) = Layer(a, config)
+
+# example
+# ---
+begin
+	Compose.set_default_graphic_size(5cm, 5cm)
+	BACKGROUND = (
+		Compose.context(),
+		Compose.rectangle(),
+		Compose.fill(colorant"Licorice")
+	)
+	arrays = [[θ, θ + 5π/4] for θ ∈ 0:π/6:2π]
+	radii  = range(0.1, stop=0.4, length=length(arrays)) |> collect
+	centers = fill((0.5, 0.5), length(arrays))
+	arcs = ArcCAngles.(centers, radii, arrays)
+	layers = Layer.(arcs)
+	image  = render([layers..., BACKGROUND])
+	image  |> Compose.PDF("gallery/ArcCAngles.pdf")
 end
 

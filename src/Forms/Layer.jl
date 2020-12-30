@@ -1,13 +1,15 @@
 using Measures; import Compose
 
-function render(layer::Tuple)
+function render(layer::Tuple, config::Compose.Context)
 
-	Compose.compose(Compose.context(),layer)
-
-end
-
-function render(layers::Vector)
-
-	Compose.compose(Compose.context(),layers...)
+	Compose.compose(config,layer)
 
 end
+render(layer::Tuple; config=Compose.context()) = render(layer, config)
+
+function render(layers::Vector, config::Compose.Context)
+
+	Compose.compose(config,layers...)
+
+end
+render(layers::Vector; config=Compose.context()) = render(layers, config)
