@@ -53,5 +53,5 @@ begin
 	end
 	layers = Layer.(lines)
 	image  = render([layers..., BACKGROUND])
-	image  |> Compose.PDF("gallery/Line.pdf")
+	# image  |> Compose.PDF("gallery/Line.pdf")
 end

@@ -213,7 +213,7 @@ begin
 	arcs = Arc3Points.(arrays)
 	layers = Layer.(arcs)
 	image  = render([layers..., BACKGROUND])
-	image  |> Compose.PDF("gallery/Arc3Points.pdf")
+	# image  |> Compose.PDF("gallery/Arc3Points.pdf")
 end
 
 mutable struct ArcCPoints <: Form
@@ -285,7 +285,7 @@ begin
 	arcs = ArcCPoints.(centers, arrays)
 	layers = Layer.(arcs)
 	image  = render([layers..., BACKGROUND])
-	image  |> Compose.PDF("gallery/ArcCPoints.pdf")
+	# image  |> Compose.PDF("gallery/ArcCPoints.pdf")
 end
 
 mutable struct ArcCAngles <: Form
@@ -340,6 +340,6 @@ begin
 	arcs = ArcCAngles.(centers, radii, arrays)
 	layers = Layer.(arcs)
 	image  = render([layers..., BACKGROUND])
-	image  |> Compose.PDF("gallery/ArcCAngles.pdf")
+	# image  |> Compose.PDF("gallery/ArcCAngles.pdf")
 end
 

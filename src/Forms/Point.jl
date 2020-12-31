@@ -52,5 +52,5 @@ begin
 	end
 	layers = Layer.(points)
 	image  = render([layers..., BACKGROUND])
-	image  |> Compose.PDF("gallery/Point.pdf")
+	# image  |> Compose.PDF("gallery/Point.pdf")
 end
